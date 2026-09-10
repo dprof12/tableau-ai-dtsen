@@ -3,8 +3,8 @@ import OpenAI from 'openai';
 import { buildSystemPrompt, buildUserPrompt } from './prompts/dtsenPromptEngine.js';
 
 /**
- * Serverless API Handler: Multi-Topic DTSEN Executive Insight Generator
- * Evaluates 5 Strategic Social Protection Perspectives (Overview, Desil, Wilayah, Integrasi, Anggaran)
+ * Serverless API Handler: Fast Hybrid DTSEN Executive Insight Generator
+ * Supports Single-Topic Fast Execution (~2.5s) & Full Multi-Topic Generation
  */
 export default async function handler(req, res) {
   // 1. CORS Headers
@@ -29,10 +29,10 @@ export default async function handler(req, res) {
 
   try {
     const payload = req.body || {};
-    const { language = 'id' } = payload;
+    const { language = 'id', targetTopic = 'overview' } = payload;
 
     // 2. Read Environment Variables
-    const provider = (process.env.AI_PROVIDER || 'gemini').toLowerCase().trim();
+    const provider = (process.env.AI_PROVIDER || 'openrouter').toLowerCase().trim();
     
     let apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
@@ -52,8 +52,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Build Prompts
-    const systemPrompt = buildSystemPrompt(language);
+    // 3. Build Fast Topic-Specific or Full Prompts
+    const systemPrompt = buildSystemPrompt(language, targetTopic);
     const userPrompt = buildUserPrompt(payload);
 
     let rawJsonText = '';
@@ -119,29 +119,37 @@ export default async function handler(req, res) {
       rawJsonText = response.text();
     }
 
-    // 5. Parse and Validate Multi-Topic JSON
-    let parsedInsights = {};
+    // 5. Parse JSON Result
+    let parsedResult = {};
     try {
       const cleanJson = rawJsonText.trim().replace(/^```json/i, '').replace(/```$/i, '').trim();
-      parsedInsights = JSON.parse(cleanJson);
+      parsedResult = JSON.parse(cleanJson);
     } catch (parseError) {
-      console.warn('[Tableau AI DTSEN] Failed to parse strict JSON from LLM, attempting fallback extraction:', parseError);
-      parsedInsights = {
-        overview: rawJsonText,
-        desil: '*(Insight profil desil belum tersedia)*',
-        wilayah: '*(Insight sebaran wilayah belum tersedia)*',
-        integrasi: '*(Insight pola usia & multi-bansos belum tersedia)*',
-        anggaran: '*(Insight alokasi anggaran belum tersedia)*',
-        temuan: '*(Insight temuan & anomali belum tersedia)*'
-      };
+      console.warn('[Tableau AI DTSEN] Failed to parse strict JSON from LLM:', parseError);
+      parsedResult = { insight: rawJsonText };
+    }
+
+    // Format Response based on targetTopic
+    if (targetTopic && targetTopic !== 'all') {
+      const singleInsightText = parsedResult.insight || parsedResult[targetTopic] || rawJsonText;
+      return res.status(200).json({
+        success: true,
+        topic: targetTopic,
+        insight: singleInsightText,
+        meta: {
+          provider,
+          model: process.env.AI_MODEL || (provider === 'openrouter' ? 'openai/gpt-5.6-luna' : 'gpt-4o-mini'),
+          timestamp: new Date().toISOString()
+        }
+      });
     }
 
     return res.status(200).json({
       success: true,
-      insights: parsedInsights,
+      insights: parsedResult,
       meta: {
         provider,
-        model: process.env.AI_MODEL || (provider === 'openrouter' ? 'google/gemini-2.5-flash' : provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.5-flash'),
+        model: process.env.AI_MODEL || (provider === 'openrouter' ? 'openai/gpt-5.6-luna' : 'gpt-4o-mini'),
         timestamp: new Date().toISOString()
       }
     });

@@ -1,6 +1,6 @@
 /**
  * Tableau AI DTSEN - Multi-Topic Insight Extension
- * Interactive Pill Switcher & Smart In-Memory Caching
+ * Hybrid Fast Loading (~2.5s) + Silent In-Memory Background Prefetch
  */
 
 // Application State
@@ -9,13 +9,16 @@ const state = {
   availableWorksheets: [],
   filterUnregisterHandlers: [],
   debounceTimer: null,
-  debounceDelayMs: 500,
+  debounceDelayMs: 400,
   activeAbortController: null,
+  prefetchAbortController: null,
   isTableauEnvironment: false,
   language: 'id',
   activeTopic: 'overview',
+  allTopics: ['overview', 'desil', 'wilayah', 'integrasi', 'anggaran', 'temuan'],
   cachedInsights: {}, // { overview: '', desil: '', wilayah: '', integrasi: '', anggaran: '', temuan: '' }
-  isGenerating: false
+  isGenerating: false,
+  extractedPayload: null
 };
 
 // DOM Elements
@@ -53,7 +56,7 @@ function initTopicPillListeners() {
 /**
  * Switch Active Topic Pill with Instant Render from Memory Cache
  */
-function switchTopic(newTopic) {
+async function switchTopic(newTopic) {
   state.activeTopic = newTopic;
 
   // Update UI Pills styling
@@ -66,9 +69,27 @@ function switchTopic(newTopic) {
   // If insight for this topic is already in memory cache, render instantly (0ms lag!)
   if (state.cachedInsights[newTopic]) {
     renderInsightMarkdown(state.cachedInsights[newTopic]);
-  } else if (!state.isGenerating) {
-    // If cache not present, re-trigger analysis
-    triggerDataExtractionAndAnalysis();
+    setLoadingState(false);
+    return;
+  }
+
+  // If not yet ready, fetch this specific topic with high priority
+  if (state.extractedPayload) {
+    setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
+    try {
+      const singleResult = await fetchSingleTopic(newTopic, state.extractedPayload);
+      if (singleResult && singleResult.insight) {
+        state.cachedInsights[newTopic] = singleResult.insight;
+        if (state.activeTopic === newTopic) {
+          renderInsightMarkdown(singleResult.insight);
+          setLoadingState(false);
+        }
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        showError('Gagal memuat insight untuk topik ini.');
+      }
+    }
   }
 }
 
@@ -86,7 +107,7 @@ function initTableauExtension() {
       detectDashboardLanguage();
       attachAllEventListeners();
       
-      // Initial Multi-Topic Insight Generation
+      // Initial Fast Insight Generation
       triggerDataExtractionAndAnalysis();
 
     }).catch((err) => {
@@ -116,7 +137,6 @@ function attachAllEventListeners() {
   });
   state.filterUnregisterHandlers = [];
 
-  // Listen to Filter & Selection changes on ALL worksheets
   state.availableWorksheets.forEach(ws => {
     try {
       const unregFilter = ws.addEventListener(
@@ -135,7 +155,6 @@ function attachAllEventListeners() {
     }
   });
 
-  // Listen to Parameter changes on the Dashboard (if any)
   if (state.dashboard && state.dashboard.getParametersAsync) {
     state.dashboard.getParametersAsync().then(params => {
       params.forEach(param => {
@@ -152,34 +171,38 @@ function attachAllEventListeners() {
 }
 
 /**
- * 4. Debounced Filter/Parameter Changed Handler
+ * 4. Debounced Filter Handler
  */
 function onTableauFilterChanged() {
   clearTimeout(state.debounceTimer);
   
   const isEn = state.language === 'en';
-  setLoadingState(true, isEn ? 'Updating DTSEN data...' : 'Memperbarui data DTSEN...');
+  setLoadingState(true, isEn ? 'Updating DTSEN data...' : 'Sedang menganalisis dan memproses insight...');
 
   state.debounceTimer = setTimeout(() => {
-    // Reset cache for new filter state
     state.cachedInsights = {};
     triggerDataExtractionAndAnalysis();
   }, state.debounceDelayMs);
 }
 
 /**
- * 5. Extract Data from Worksheet(s) & Fetch Multi-Topic AI Insights
+ * 5. Extract Data & Execute Fast Hybrid Priority + Background Prefetch
  */
 async function triggerDataExtractionAndAnalysis() {
-  // Abort any ongoing fetch request
+  // Abort previous priority & background requests
   if (state.activeAbortController) {
     state.activeAbortController.abort();
   }
+  if (state.prefetchAbortController) {
+    state.prefetchAbortController.abort();
+  }
+
   state.activeAbortController = new AbortController();
+  state.prefetchAbortController = new AbortController();
   const currentSignal = state.activeAbortController.signal;
 
   state.isGenerating = true;
-  setLoadingState(true);
+  setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
 
   try {
     let payload = {};
@@ -201,7 +224,6 @@ async function triggerDataExtractionAndAnalysis() {
                 ? cell.formattedValue 
                 : cell.value;
               
-              // Percentage normalization
               const colName = (columns[colIdx] || '').toLowerCase();
               if (
                 typeof val === 'number' || 
@@ -250,38 +272,28 @@ async function triggerDataExtractionAndAnalysis() {
         totalRows: totalDataRows,
         appliedFilters: allAppliedFilters,
         sheetsData: combinedSheetsData,
-        language: state.language,
-        activeTopic: state.activeTopic
+        language: state.language
       };
 
     } else {
       payload = getDemoDtsenPayload();
     }
 
-    // Send POST to Serverless API Endpoint with silent auto-retry
-    const result = await fetchWithRetry('/api/generate-dtsen-insight', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload),
-      signal: currentSignal
-    }, 2, 1500);
+    state.extractedPayload = payload;
 
+    // STEP 1: Fast Priority Fetch for Active Topic (takes only ~2.5 - 3.0s!)
+    const activeResult = await fetchSingleTopic(state.activeTopic, payload, currentSignal);
+    
     state.isGenerating = false;
 
-    // Save insights dictionary in memory cache
-    if (result.insights && typeof result.insights === 'object') {
-      state.cachedInsights = result.insights;
-    } else if (result.insight) {
-      // Fallback single insight
-      state.cachedInsights[state.activeTopic] = result.insight;
+    if (activeResult && activeResult.insight) {
+      state.cachedInsights[state.activeTopic] = activeResult.insight;
+      renderInsightMarkdown(activeResult.insight);
+      setLoadingState(false);
     }
 
-    // Render insight for current active topic
-    const currentText = state.cachedInsights[state.activeTopic] || result.insight || '*(Insight tidak tersedia untuk topik ini)*';
-    renderInsightMarkdown(currentText);
-    setLoadingState(false);
+    // STEP 2: Silent Background Prefetching for remaining topics
+    launchBackgroundPrefetch(payload, state.prefetchAbortController.signal);
 
   } catch (error) {
     state.isGenerating = false;
@@ -309,9 +321,52 @@ async function triggerDataExtractionAndAnalysis() {
 }
 
 /**
+ * Fetch Single Topic Fast (~2.5s)
+ */
+async function fetchSingleTopic(topicName, basePayload, signal) {
+  const requestBody = {
+    ...basePayload,
+    targetTopic: topicName
+  };
+
+  const result = await fetchWithRetry('/api/generate-dtsen-insight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+    signal: signal
+  }, 2, 1200);
+
+  return result;
+}
+
+/**
+ * Silent Background Prefetch for Remaining Topics
+ */
+async function launchBackgroundPrefetch(basePayload, abortSignal) {
+  const remainingTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
+
+  for (const topic of remainingTopics) {
+    if (abortSignal.aborted) break;
+
+    try {
+      const res = await fetchSingleTopic(topic, basePayload, abortSignal);
+      if (res && res.insight) {
+        state.cachedInsights[topic] = res.insight;
+        console.log(`[Tableau AI DTSEN] Prefetched topic '${topic}' silently in background.`);
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        break;
+      }
+      console.warn(`[Tableau AI DTSEN] Silent prefetch for topic '${topic}' skipped:`, e);
+    }
+  }
+}
+
+/**
  * Resilient Fetch with Silent Auto-Retry
  */
-async function fetchWithRetry(url, options, maxRetries = 2, delayMs = 1500) {
+async function fetchWithRetry(url, options, maxRetries = 2, delayMs = 1200) {
   let attempt = 0;
   while (attempt <= maxRetries) {
     try {
@@ -337,13 +392,6 @@ async function fetchWithRetry(url, options, maxRetries = 2, delayMs = 1500) {
       }
 
       console.warn(`[Tableau AI DTSEN] Request attempt ${attempt}/${maxRetries} failed. Retrying...`, err);
-      
-      const isEn = state.language === 'en';
-      const retryMsg = isEn 
-        ? 'Reconnecting insight service...' 
-        : 'Koneksi terputus sesaat, mencoba menghubungkan ulang...';
-      setLoadingState(true, retryMsg);
-
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
@@ -410,7 +458,6 @@ function getDemoDtsenPayload() {
     dashboardName: 'Executive Dashboard DTSEN - Data Tahun 2025',
     totalRows: 24,
     appliedFilters: [
-      { fieldName: 'Tahun', appliedValues: ['2025'] },
       { fieldName: 'Wilayah', appliedValues: ['Semua Wilayah'] }
     ],
     sheetsData: [
@@ -425,10 +472,10 @@ function getDemoDtsenPayload() {
         worksheetName: 'Distribusi_Desil',
         columns: ['Kelompok Desil', 'Total Individu', 'Penerima Program', 'Penetrasi (%)'],
         rows: [
-          ['Desil 1', '953.400', '461.459', '48,40%'],
-          ['Desil 2-4', '3.468.100', '1.972.296', '56,87%'],
+          ['Desil 1', '445.705', '214.119', '48,04%'],
+          ['Desil 2-4', '1.988.050', '1.121.638', '57,88%'],
           ['Desil 5-6', '3.048.400', '1.790.350', '58,73%'],
-          ['Desil 7-10', '10.843.400', '4.706.058', '43,40%']
+          ['Desil 7-10', '4.719.817', '2.042.518', '43,28%']
         ]
       },
       {
@@ -459,8 +506,8 @@ function getDemoDtsenPayload() {
         rows: [
           ['KJP (Kartu Jakarta Pintar)', '776.789', 'Rp3.243.905.917.224'],
           ['PDPEMDA (Pangan Bersubsidi)', '4.305.718', 'Rp1.921.914.199.800'],
-          ['KJMU (Mahasiswa Unggul)', '49.120', 'Rp305.091.000.000'],
-          ['BPMS (Bantuan Masuk Sekolah)', '68.450', 'Rp88.226.055.140'],
+          ['KJMU (Mahasiswa Unggul)', '19.002', 'Rp305.091.000.000'],
+          ['BPMS (Bantuan Masuk Sekolah)', '29.572', 'Rp88.226.055.140'],
           ['KLJ (Lansia Jakarta)', '157.127', 'Rp0'],
           ['KPDJ (Disabilitas Jakarta)', '21.400', 'Rp0']
         ]
@@ -472,7 +519,7 @@ function getDemoDtsenPayload() {
 }
 
 /**
- * 8. Language Detection & UI Localization Helpers
+ * 8. Language Detection
  */
 function detectDashboardLanguage() {
   let lang = 'id';
@@ -483,10 +530,7 @@ function detectDashboardLanguage() {
     lang = 'en';
   } else if (state.isTableauEnvironment && state.dashboard && state.dashboard.name) {
     const dbName = state.dashboard.name.toLowerCase();
-    if (enRegex.test(dbName) || dbName.includes('english') || dbName.includes('dtsen executive')) {
-      // Keep 'id' for DTSEN unless explicitly en
-      if (dbName.includes('english')) lang = 'en';
-    }
+    if (dbName.includes('english')) lang = 'en';
   }
   
   state.language = lang;

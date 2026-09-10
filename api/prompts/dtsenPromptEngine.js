@@ -1,11 +1,18 @@
 /**
  * Prompt Engine for Tableau AI DTSEN Multi-Topic Insight
  * Specializes in 6 strategic analytical topics for Jakarta's Social Protection Executive Dashboard
+ * Supports Single-Topic Fast Generation (2-3s) & Full Multi-Topic Generation
  */
 
-export function buildSystemPrompt(language = 'id') {
+export function buildSystemPrompt(language = 'id', targetTopic = 'all') {
   const isEn = language === 'en';
 
+  // 1. Single Topic Fast Execution Mode (250-350 tokens)
+  if (targetTopic && targetTopic !== 'all') {
+    return buildSingleTopicPrompt(language, targetTopic);
+  }
+
+  // 2. Full Multi-Topic Mode
   if (isEn) {
     return `You are a Senior Executive Policy & Social Protection Data Analyst for the Jakarta Provincial Government.
 Your task is to analyze the active DTSEN (Data Terpadu Sosial Ekonomi Nasional) data and generate clear, comprehensive, and high-impact executive insights across 6 distinct analytical topics in JSON format.
@@ -23,7 +30,7 @@ You MUST return ONLY a valid JSON object with EXACTLY the following 6 keys:
 }
 
 WRITING & NARRATIVE GUIDELINES:
-1. CLEAR, COMPLETE & INSIGHTFUL: Provide rich context, exact data figures, and clear analytical rationale. Do not artificially truncate insights into oversimplified snippets; explain the 'what' and 'why' thoroughly and fluently.
+1. CLEAR, COMPLETE & INSIGHTFUL: Provide rich context, exact data figures, and clear analytical rationale. Explain the 'what' and 'why' thoroughly and fluently.
 2. ANTI-TECHNICAL JARGON: NEVER use database or technical terms like "in the visual", "filtered data", "rows", "dataset", "data table", "columns".
 3. ZERO RIGID AI PATTERNS: DO NOT use em-dashes (—) or artificial bullet markers. Write in natural flowing prose.
 4. BOLD FORMATTING: Use **bold** for critical figures (e.g., **49.00%**, **Rp3.24 Trillion**, **4.9 Million individuals**), key region names, and program names.
@@ -38,11 +45,11 @@ FORMAT OUTPUT WAJIB (STRICT JSON ONLY):
 Anda WAJIB mengembalikan HANYA sebuah objek JSON valid dengan TEPAT 6 kunci topik berikut:
 {
   "overview": "Narasi komprehensif dan jelas yang merangkum total agregat populasi terdata (individu/keluarga), tingkat penetrasi keseluruhan program bansos, dan kondisi makro perlindungan sosial DKI Jakarta.",
-  "desil": "Evaluasi mendalam mengenai distribusi kesejahteraan dan ketepatan sasaran perlindungan sosial pada kelompok miskin/rentan (Desil 1-4) dibanding kelompok menengah ke atas (Desil 7-10).",
-  "wilayah": "Analisis spasial lengkap yang menyoroti konsentrasi beban geografis penduduk (misal: Jakarta Timur & Jakarta Barat) dibanding disparitas persentase cakupan bantuan antar wilayah kota/kabupaten.",
-  "integrasi": "Bedahan mendalam mengenai pola siklus hidup usia penerima bantuan (anak/pelajar di KJP, usia produktif di PDPEMDA, lansia di KLJ) serta proporsi penerima tunggal (1 program) vs tumpang tindih multi-program (2 hingga 4 bansos).",
-  "anggaran": "Analisis terperinci mengenai efisiensi alokasi anggaran rupiah (membandingkan serapan dana terbesar seperti KJP senilai Triliunan Rupiah dengan program volume penerima terbesar seperti PDPEMDA, serta program lainnya).",
-  "temuan": "Audit diagnostik dan temuan anomali kebijakan yang secara eksplisit membedah: (1) Potensi Exclusion Error (persentase & estimasi warga Desil 1 atau desil bawah yang belum tercover bansos sama sekali), (2) Potensi Inclusion Error (persentase & volume warga Desil 7-10 kelompok mampu yang masih menerima bansos), serta (3) Anomali duplikasi penerima 3 hingga 4 program sekaligus.",
+  "desil": "Evaluasi mendalam mengenai distribusi kesejahteraan dan ketepatan sasaran perlindungan sosial pada kelompok Desil 1-4 dibanding Desil 7-10.",
+  "wilayah": "Analisis spasial lengkap yang menyoroti konsentrasi beban geografis penduduk dibanding disparitas persentase cakupan bantuan antar wilayah kota/kabupaten.",
+  "integrasi": "Bedahan mendalam mengenai pola siklus hidup usia penerima bantuan serta proporsi penerima tunggal (1 program) vs tumpang tindih multi-program (2 hingga 4 bansos).",
+  "anggaran": "Analisis terperinci mengenai efisiensi alokasi anggaran rupiah (membandingkan serapan dana terbesar seperti KJP senilai Triliunan Rupiah dengan program volume penerima terbesar seperti PDPEMDA).",
+  "temuan": "Audit diagnostik dan temuan anomali kebijakan yang secara eksplisit membedah: (1) Exclusion Error (warga Desil 1 belum menerima bantuan), (2) Inclusion Error (penerima di Desil 7-10), serta (3) Anomali duplikasi penerima 3 hingga 4 program sekaligus.",
   "meta_summary": "1 kalimat ringkas kesimpulan umum data saat ini."
 }
 
@@ -93,11 +100,90 @@ PANDUAN PENULISAN & GAYA BAHASA (MANDATORI):
 12. BAHASA OUTPUT: Wajib 100% dalam Bahasa Indonesia formal, elegan, dan profesional.`;
 }
 
+/**
+ * Fast Single Topic System Prompt (Focuses on 1 topic, generates in ~2-3 seconds)
+ */
+function buildSingleTopicPrompt(language = 'id', targetTopic = 'overview') {
+  const topicMapId = {
+    overview: 'RINGKASAN EKSEKUTIF MAKRO POPULASI & CAKUPAN BANSOS',
+    desil: 'PROFIL KESEJAHTERAAN & DISTRIBUSI DESIL 1-10',
+    wilayah: 'SEBARAN SPASIAL & BEBAN 6 WILAYAH KOTA/KABUPATEN',
+    integrasi: 'POLA USIA SIKLUS HIDUP & IRISAN MULTI-BANSOS',
+    anggaran: 'ALOKASI ANGGARAN & EFISIENSI FISKAL PROGRAM',
+    temuan: 'AUDIT TEMUAN INCLUSION & EXCLUSION ERROR SERTA ANOMALI'
+  };
+
+  const topicTitle = topicMapId[targetTopic] || 'RINGKASAN EKSEKUTIF';
+
+  return `Anda adalah Analis Data Kebijakan & Perlindungan Sosial Eksekutif Senior Pemprov DKI Jakarta.
+Tugas Anda adalah menghasilkan narasi insight eksekutif yang jelas, lengkap, dan berbobot KHUSUS untuk fokus topik: **${topicTitle}** berdasarkan data aktif DTSEN (Data Terpadu Sosial Ekonomi Nasional).
+
+FORMAT OUTPUT WAJIB (STRICT JSON ONLY):
+Kembalikan HANYA sebuah objek JSON valid dengan format:
+{
+  "topic": "${targetTopic}",
+  "insight": "Teks narasi lengkap, komprehensif, dan mengalir khusus untuk topik ini (1-2 paragraf padat)."
+}
+
+PANDUAN KHUSUS TOPIK AKTIF:
+${getTopicSpecificRule(targetTopic)}
+
+PANDUAN UMUM:
+1. ANTI-ISTILAH DATABASE: DILARANG KERAS menggunakan kata seperti "pada visual", "data yang terfilter", "baris", "kolom", "dataset", "tabel data", "tampilan".
+2. BEBAS POLA AI KAKU: DILARANG menggunakan tanda hubung panjang (em-dash "—") atau daftar butir (bullet points).
+3. FORMAT TEBAL: Gunakan **bold** untuk angka kunci, nama wilayah, dan program bansos.
+4. ANGKA & PERSENTASE: Wajib dibulatkan ke maksimal 2 angka di belakang koma dengan koma desimal Indonesia (contoh: **49,00%**, **56,87%**, **59,56%**; DILARANG mencetak 4 desimal). Nilai rupiah disajikan ke Triliun atau Miliar.
+5. BEBAS KATA "SEKITAR" & DILARANG MENYEBUT TAHUN UNTUK DTSEN.
+6. BAHASA OUTPUT: 100% Bahasa Indonesia formal dan elegan.`;
+}
+
+function getTopicSpecificRule(topic) {
+  switch (topic) {
+    case 'overview':
+      return `- DILARANG menyebut tahun untuk data DTSEN.
+- Narasi 4 lapis fakta data: (1) Total populasi terdata (10 Jt individu & 3,4 Jt keluarga), (2) Penetrasi bansos individu & keluarga dengan istilah netral ("terdaftar sebagai penerima" dan "kelompok non-penerima"), (3) Penetrasi desil kunci (Desil 1, Desil 2-4, Desil 5-6), dan (4) Benang merah spasial wilayah & anggaran.
+- SETIAP KALI menyebutkan jumlah jiwa penerima per wilayah (misal: Jakarta Timur, Jakarta Barat), WAJIB menyertakan persentase terhadap total penduduk di wilayah tersebut (contoh: "Jakarta Timur (1,32 Juta jiwa atau 45,59% dari total penduduk wilayahnya)").`;
+
+    case 'desil':
+      return `- MURNI sebutkan nama kelompok desil (Desil 1, Desil 2–4, Desil 5–6, Desil 7–10) TANPA label kualitatif (dilarang menyebut 'sangat miskin/rentan/mampu').
+- Soroti perbandingan kontribusi penerima: Desil 7–10 menyumbang 41,62% dari total seluruh penerima vs Desil 1 yang hanya menyumbang 4,36%.
+- Gunakan notasi standar: Desil 1–4, Desil 2–4, Desil 7–10.`;
+
+    case 'wilayah':
+      return `- Soroti beban demografis 3 wilayah terbesar (Jaktim, Jakbar, Jaksel = 73,29% total populasi).
+- Sandingkan volume penerima dan persentase penetrasi langsung dalam satu nafas (contoh: "Jakarta Timur sebesar 45,59% (1.323.754 penerima)").
+- Sajikan perbandingan penetrasi tertinggi (Jakpus 52,87%, Jakbar 52,66%, Kep. Seribu 50,05%) vs terendah (Jaktim 45,59%, Jaksel 47,60%, Jakut 49,25%).
+- Hitung selisih disparitas spasial (7,28 poin persentase) secara netral.`;
+
+    case 'integrasi':
+      return `- Jelaskan dominasi penerima tunggal (4.331.434 individu / 88,27%) vs multi-bansos (575.444 individu / 11,73%).
+- Rincikan bertingkat: 2 bansos (558.869), 3 bansos (16.500), 4 bansos (75 jiwa).
+- Distribusi siklus hidup: KJP anak/pelajar, PDPEMDA usia produktif, KLJ lansia, serta irisan usia 11–15 & 16–20 tahun (PDPEMDA, KJP, BPMS).
+- DILARANG mengeluhkan ketersediaan data dan DILARANG menambah kalimat opini kebijakan di akhir.`;
+
+    case 'anggaran':
+      return `- Sajikan total fiskal terukur (Rp5,56 Triliun) dan perbandingan serapan terbesar (KJP Rp3,24 T / 58,35% untuk 776.789 penerima) vs volume terbesar (PDPEMDA 4.305.718 individu / Rp1,92 T / 34,57%), KJMU (Rp305,09 M), BPMS (Rp88,23 M).
+- Sajikan indikatif unit cost: KJMU Rp16,06 Jt, KJP Rp4,18 Jt, BPMS Rp2,98 Jt, PDPEMDA Rp446 Rb.
+- Program nominal Rp0 (KLJ, KPDJ, KAJ) dinarasikan netral.`;
+
+    case 'temuan':
+      return `- MURNI sebutkan nama desil (Desil 1, Desil 2–4, Desil 7–10) tanpa label kualitatif.
+- Exclusion Error: Desil 1 tercatat 51,96% (231.586 individu) dari 445.705 belum menerima bansos, Desil 2–4 terdapat 42,12% (816.217 individu) belum terjangkau.
+- Inclusion Error: Desil 7–10 tercatat 43,28% (2.042.518 individu) dari 4.719.817 populasi pada desil tersebut masih menerima bantuan.
+- Anomali duplikasi: 16.500 individu (3 bansos) dan 75 individu (4 bansos).
+- Rekonsiliasi status Belum Diperingkatkan dan Tidak Terdata.`;
+
+    default:
+      return '';
+  }
+}
+
 export function buildUserPrompt(payload) {
   const {
     dashboardName = 'Executive Dashboard DTSEN',
     appliedFilters = [],
-    sheetsData = []
+    sheetsData = [],
+    targetTopic = 'all'
   } = payload;
 
   const filterText = appliedFilters.length > 0
@@ -113,6 +199,10 @@ export function buildUserPrompt(payload) {
     formattedDataText = '*(Tidak ada data lembar kerja)*';
   }
 
+  const instructionText = targetTopic && targetTopic !== 'all'
+    ? `Hasilkan objek JSON untuk topik spesifik '${targetTopic}' sesuai format yang ditentukan:`
+    : `Hasilkan objek JSON yang memuat narasi untuk 6 topik analitis (overview, desil, wilayah, integrasi, anggaran, temuan) sesuai format yang telah ditentukan:`;
+
   return `### KONTEKS FILTER DASHBOARD TABLEAU:
 - Dashboard: ${dashboardName}
 - Filter Aktif: ${filterText}
@@ -120,7 +210,7 @@ export function buildUserPrompt(payload) {
 ### DATA AKTIF DARI DASHBOARD DTSEN:
 ${formattedDataText}
 
-Hasilkan objek JSON yang memuat narasi untuk 6 topik analitis (overview, desil, wilayah, integrasi, anggaran, temuan) sesuai format yang telah ditentukan:`;
+${instructionText}`;
 }
 
 function buildMarkdownTable(columns, rows) {
