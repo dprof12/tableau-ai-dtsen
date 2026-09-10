@@ -385,7 +385,7 @@ function setLoadingState(isLoading, customMessage) {
     elements.loadingView.classList.remove('hidden');
     
     if (elements.loadingHint) {
-      elements.loadingHint.textContent = customMessage || (state.language === 'en' ? 'Analyzing DTSEN data...' : 'Menganalisis data DTSEN...');
+      elements.loadingHint.textContent = customMessage || (state.language === 'en' ? 'Analyzing and processing insight...' : 'Sedang menganalisis dan memproses insight...');
     }
   }
 }
