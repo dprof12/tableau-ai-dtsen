@@ -1,0 +1,31 @@
+{
+  "name": "tableau-ai-dtsen",
+  "version": "1.0.0",
+  "description": "Tableau AI DTSEN Multi-Topic Insight Extension for Jakarta Executive Dashboard",
+  "main": "api/generate-dtsen-insight.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "serve public"
+  },
+  "keywords": [
+    "tableau",
+    "tableau-extension",
+    "dtsen",
+    "bansos",
+    "jakarta",
+    "ai",
+    "gemini",
+    "openai",
+    "openrouter"
+  ],
+  "author": "Dava (Diskominfotik Pemprov DKI Jakarta)",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "openai": "^4.86.1"
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

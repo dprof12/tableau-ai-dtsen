@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <dashboard-extension id="com.tableau.ai.dtsen.extension" extension-version="1.0.0">
+    <default-locale>id_ID</default-locale>
+    <name resource-id="name"/>
+    <description>Tableau AI Multi-Topic Executive Insight Extension for DTSEN & Bansos DKI Jakarta</description>
+    <author name="Dava - Diskominfotik Pemprov DKI Jakarta" email="dava@jakarta.go.id" organization="Diskominfotik DKI Jakarta" website="https://jakarta.go.id"/>
+    <min-api-version>1.0</min-api-version>
+    
+    <source-location>
+      <url>https://tableau-ai-dtsen.vercel.app/ui.html</url>
+    </source-location>
+    
+    <icon></icon>
+    <permissions>
+      <permission>full data</permission>
+    </permissions>
+  </dashboard-extension>
+  <resources>
+    <resource id="name">
+      <text locale="id_ID">Tableau AI DTSEN Multi-Topic Insight</text>
+      <text locale="en_US">Tableau AI DTSEN Multi-Topic Insight</text>
+    </resource>
+  </resources>
+</manifest>

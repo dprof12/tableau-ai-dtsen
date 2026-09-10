@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau AI DTSEN Multi-Topic Insight</title>
+  
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Polyfill for older embedded Chromium in Tableau Desktop -->
+  <script>
+    if (!String.prototype.at) {
+      String.prototype.at = function(n) {
+        n = Math.trunc(n) || 0;
+        if (n < 0) n += this.length;
+        if (n < 0 || n >= this.length) return undefined;
+        return this.charAt(n);
+      };
+    }
+    if (!Array.prototype.at) {
+      Array.prototype.at = function(n) {
+        n = Math.trunc(n) || 0;
+        if (n < 0) n += this.length;
+        if (n < 0 || n >= this.length) return undefined;
+        return this[n];
+      };
+    }
+  </script>
+
+  <!-- Tableau Extensions JS SDK -->
+  <script src="js/tableau.extensions.1.latest.js"></script>
+  
+  <!-- Marked.js for fast markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+</head>
+<body>
+  <div class="dtsen-container" id="appContainer">
+    
+    <!-- Header with 5 Perspective Pill Buttons -->
+    <div class="dtsen-header-row">
+      <div class="topic-pills-toolbar" id="pillsToolbar" role="tablist">
+        <button type="button" class="topic-pill active" data-topic="overview" role="tab" aria-selected="true">
+          <span class="pill-icon">🌐</span> Ringkasan
+        </button>
+        <button type="button" class="topic-pill" data-topic="desil" role="tab" aria-selected="false">
+          <span class="pill-icon">👥</span> Profil Desil
+        </button>
+        <button type="button" class="topic-pill" data-topic="wilayah" role="tab" aria-selected="false">
+          <span class="pill-icon">📍</span> Sebaran Wilayah
+        </button>
+        <button type="button" class="topic-pill" data-topic="integrasi" role="tab" aria-selected="false">
+          <span class="pill-icon">🔀</span> Usia & Multi-Bansos
+        </button>
+        <button type="button" class="topic-pill" data-topic="anggaran" role="tab" aria-selected="false">
+          <span class="pill-icon">💰</span> Alokasi Anggaran
+        </button>
+        <button type="button" class="topic-pill" data-topic="temuan" role="tab" aria-selected="false">
+          <span class="pill-icon">⚠️</span> Temuan & Anomali
+        </button>
+      </div>
+    </div>
+    
+    <!-- Insight Content Body -->
+    <div class="insight-content-area">
+      <!-- Skeleton Loading State -->
+      <div id="loadingView" class="loading-view hidden">
+        <div class="shimmer-line line-full"></div>
+        <div class="shimmer-line line-three-quarters"></div>
+        <div class="loading-subtle-hint">
+          <span class="spinner-dot"></span>
+          <span id="loadingHint">Menganalisis data DTSEN...</span>
+        </div>
+      </div>
+
+      <!-- Pure Text Insight Render View -->
+      <div id="insightView" class="insight-text-wrapper">
+        <p class="placeholder-text">Menghubungkan ke Tableau Dashboard DTSEN...</p>
+      </div>
+
+      <!-- Error Message Display -->
+      <div id="errorView" class="error-view hidden">
+        <p id="errorMessage">Gagal memuat insight.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main Application Script -->
+  <script src="js/app.js"></script>
+</body>
+</html>
