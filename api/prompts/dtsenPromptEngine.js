@@ -4,11 +4,25 @@
  * Supports Single-Topic Fast Generation (2-3s) & Full Multi-Topic Generation
  */
 
-export function buildSystemPrompt(language = 'id', targetTopic = 'all') {
+export function buildSystemPrompt(language = 'id', targetTopic = 'all', topics = []) {
   const isEn = language === 'en';
 
+  // Check for Batch Topics Mode
+  let batchList = [];
+  if (Array.isArray(topics) && topics.length > 0) {
+    batchList = topics;
+  } else if (Array.isArray(targetTopic)) {
+    batchList = targetTopic;
+  } else if (typeof targetTopic === 'string' && targetTopic.includes(',')) {
+    batchList = targetTopic.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  if (batchList.length > 0) {
+    return buildBatchTopicsPrompt(language, batchList);
+  }
+
   // 1. Single Topic Fast Execution Mode (250-350 tokens)
-  if (targetTopic && targetTopic !== 'all') {
+  if (targetTopic && targetTopic !== 'all' && targetTopic !== 'batch') {
     return buildSingleTopicPrompt(language, targetTopic);
   }
 
@@ -98,6 +112,47 @@ PANDUAN PENULISAN & GAYA BAHASA (MANDATORI):
    - Persentase WAJIB dibulatkan ke maksimal 2 angka di belakang koma dengan koma desimal Bahasa Indonesia (contoh: **49,00%**, **56,87%**, **59,56%**; DILARANG mencetak 4 desimal seperti 48,9982%).
    - Nilai anggaran disajikan secara elegan ke satuan Triliun atau Miliar (contoh: **Rp3,24 Triliun**, **Rp1,92 Triliun**, **Rp305,09 Miliar**).
 12. BAHASA OUTPUT: Wajib 100% dalam Bahasa Indonesia formal, elegan, dan profesional.`;
+}
+
+/**
+ * Batch Topics Prompt Generator (Handles a subset of topics, e.g. 4 remaining topics in 1 request)
+ */
+function buildBatchTopicsPrompt(language = 'id', topicList = []) {
+  const topicMapId = {
+    overview: 'RINGKASAN EKSEKUTIF MAKRO POPULASI & CAKUPAN BANSOS',
+    desil: 'PROFIL KESEJAHTERAAN & DISTRIBUSI DESIL 1-10',
+    wilayah: 'SEBARAN SPASIAL & BEBAN 6 WILAYAH KOTA/KABUPATEN',
+    integrasi: 'POLA USIA SIKLUS HIDUP & IRISAN MULTI-BANSOS',
+    anggaran: 'ALOKASI ANGGARAN & EFISIENSI FISKAL PROGRAM',
+    temuan: 'AUDIT TEMUAN INCLUSION & EXCLUSION ERROR SERTA ANOMALI'
+  };
+
+  const jsonKeysTemplate = topicList.map(t => `  "${t}": "Teks narasi eksekutif lengkap, komprehensif, dan mengalir khusus untuk fokus topik '${t}'."`).join(',\n');
+  const rulesList = topicList.map(t => {
+    const title = topicMapId[t] || t.toUpperCase();
+    const rule = getTopicSpecificRule(t);
+    return `### ATURAN KHUSUS TOPIK: ${title} (${t.toUpperCase()})\n${rule}`;
+  }).join('\n\n');
+
+  return `Anda adalah Analis Data Kebijakan & Perlindungan Sosial Eksekutif Senior Pemprov DKI Jakarta.
+Tugas Anda adalah menganalisis data aktif dashboard DTSEN (Data Terpadu Sosial Ekonomi Nasional) dan menyajikan narasi insight eksekutif yang jelas, lengkap, dan berbobot KHUSUS untuk ${topicList.length} topik analitis strategis berikut dalam format JSON terstruktur: ${topicList.join(', ')}.
+
+FORMAT OUTPUT WAJIB (STRICT JSON ONLY):
+Anda WAJIB mengembalikan HANYA sebuah objek JSON valid dengan TEPAT ${topicList.length} kunci berikut:
+{
+${jsonKeysTemplate}
+}
+
+PANDUAN KHUSUS SETIAP TOPIK:
+${rulesList}
+
+PANDUAN UMUM:
+1. ANTI-ISTILAH DATABASE: DILARANG KERAS menggunakan kata seperti "pada visual", "data yang terfilter", "baris", "kolom", "dataset", "tabel data", "tampilan".
+2. BEBAS POLA AI KAKU: DILARANG menggunakan tanda hubung panjang (em-dash "—") atau daftar butir (bullet points).
+3. FORMAT TEBAL: Gunakan **bold** untuk angka kunci, nama wilayah, dan program bansos.
+4. ANGKA & PERSENTASE: Wajib dibulatkan ke maksimal 2 angka di belakang koma dengan koma desimal Indonesia (contoh: **49,00%**, **56,87%**, **59,56%**; DILARANG mencetak 4 desimal). Nilai rupiah disajikan ke Triliun atau Miliar.
+5. BEBAS KATA "SEKITAR" & DILARANG MENYEBUT TAHUN UNTUK DTSEN.
+6. BAHASA OUTPUT: 100% Bahasa Indonesia formal dan elegan.`;
 }
 
 /**
@@ -199,9 +254,24 @@ export function buildUserPrompt(payload) {
     formattedDataText = '*(Tidak ada data lembar kerja)*';
   }
 
-  const instructionText = targetTopic && targetTopic !== 'all'
-    ? `Hasilkan objek JSON untuk topik spesifik '${targetTopic}' sesuai format yang ditentukan:`
-    : `Hasilkan objek JSON yang memuat narasi untuk 6 topik analitis (overview, desil, wilayah, integrasi, anggaran, temuan) sesuai format yang telah ditentukan:`;
+  // Determine instruction text based on mode (single, batch, or all 6)
+  let batchList = [];
+  if (Array.isArray(payload.topics) && payload.topics.length > 0) {
+    batchList = payload.topics;
+  } else if (Array.isArray(targetTopic)) {
+    batchList = targetTopic;
+  } else if (typeof targetTopic === 'string' && targetTopic.includes(',')) {
+    batchList = targetTopic.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  let instructionText = '';
+  if (batchList.length > 0) {
+    instructionText = `Hasilkan objek JSON untuk topik-topik spesifik (${batchList.join(', ')}) sesuai format yang ditentukan:`;
+  } else if (targetTopic && targetTopic !== 'all' && targetTopic !== 'batch') {
+    instructionText = `Hasilkan objek JSON untuk topik spesifik '${targetTopic}' sesuai format yang ditentukan:`;
+  } else {
+    instructionText = `Hasilkan objek JSON yang memuat narasi untuk 6 topik analitis (overview, desil, wilayah, integrasi, anggaran, temuan) sesuai format yang telah ditentukan:`;
+  }
 
   return `### KONTEKS FILTER DASHBOARD TABLEAU:
 - Dashboard: ${dashboardName}

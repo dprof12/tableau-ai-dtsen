@@ -340,27 +340,74 @@ async function fetchSingleTopic(topicName, basePayload, signal) {
 }
 
 /**
- * Silent Background Prefetch for Remaining Topics
+ * 3x Hybrid Request Architecture:
+ * - Request 1: Active Topic (already fetched in triggerDataExtractionAndAnalysis)
+ * - Request 2: Secondary Priority Topic (e.g. 'desil' if active is 'overview')
+ * - Request 3: Batch remaining topics (e.g. ['wilayah', 'integrasi', 'anggaran', 'temuan'] at once)
  */
 async function launchBackgroundPrefetch(basePayload, abortSignal) {
   const remainingTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
+  if (remainingTopics.length === 0 || abortSignal.aborted) return;
 
-  for (const topic of remainingTopics) {
-    if (abortSignal.aborted) break;
-
-    try {
-      const res = await fetchSingleTopic(topic, basePayload, abortSignal);
-      if (res && res.insight) {
-        state.cachedInsights[topic] = res.insight;
-        console.log(`[Tableau AI DTSEN] Prefetched topic '${topic}' silently in background.`);
-      }
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        break;
-      }
-      console.warn(`[Tableau AI DTSEN] Silent prefetch for topic '${topic}' skipped:`, e);
-    }
+  // 1. Determine 2nd Priority Topic (favor 'desil' if overview is active, otherwise first remaining)
+  let secondTopic = remainingTopics.includes('desil') ? 'desil' : remainingTopics[0];
+  if (state.activeTopic === 'desil' && remainingTopics.includes('overview')) {
+    secondTopic = 'overview';
   }
+
+  // Execute Request 2: Fetch 2nd priority topic individually
+  try {
+    const resSecond = await fetchSingleTopic(secondTopic, basePayload, abortSignal);
+    if (resSecond && resSecond.insight) {
+      state.cachedInsights[secondTopic] = resSecond.insight;
+      console.log(`[Tableau AI DTSEN] Prefetched 2nd priority topic '${secondTopic}' silently.`);
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.warn(`[Tableau AI DTSEN] 2nd topic prefetch skipped:`, e);
+  }
+
+  if (abortSignal.aborted) return;
+
+  // 2. Determine remaining batch topics (usually 4 topics)
+  const batchTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
+  if (batchTopics.length === 0 || abortSignal.aborted) return;
+
+  // Execute Request 3: Fetch all remaining topics in 1 single batch request!
+  try {
+    const resBatch = await fetchBatchTopics(batchTopics, basePayload, abortSignal);
+    if (resBatch && resBatch.insights) {
+      for (const [topicKey, text] of Object.entries(resBatch.insights)) {
+        if (text && typeof text === 'string') {
+          state.cachedInsights[topicKey] = text;
+        }
+      }
+      console.log(`[Tableau AI DTSEN] Successfully batch prefetched ${batchTopics.length} remaining topics:`, batchTopics);
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.warn('[Tableau AI DTSEN] Batch remaining prefetch skipped:', e);
+  }
+}
+
+/**
+ * Fetch Batch Topics in 1 Single Request
+ */
+async function fetchBatchTopics(topicList, basePayload, signal) {
+  const requestBody = {
+    ...basePayload,
+    targetTopic: 'batch',
+    topics: topicList
+  };
+
+  const result = await fetchWithRetry('/api/generate-dtsen-insight', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+    signal: signal
+  }, 2, 1500);
+
+  return result;
 }
 
 /**

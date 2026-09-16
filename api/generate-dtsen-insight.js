@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
   try {
     const payload = req.body || {};
-    const { language = 'id', targetTopic = 'overview' } = payload;
+    const { language = 'id', targetTopic = 'overview', topics = [] } = payload;
 
     // 2. Read Environment Variables
     const provider = (process.env.AI_PROVIDER || 'openrouter').toLowerCase().trim();
@@ -52,8 +52,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Build Fast Topic-Specific or Full Prompts
-    const systemPrompt = buildSystemPrompt(language, targetTopic);
+    // 3. Build Fast Topic-Specific, Batch, or Full Prompts
+    const systemPrompt = buildSystemPrompt(language, targetTopic, topics);
     const userPrompt = buildUserPrompt(payload);
 
     let rawJsonText = '';
@@ -129,7 +129,34 @@ export default async function handler(req, res) {
       parsedResult = { insight: rawJsonText };
     }
 
-    // Format Response based on targetTopic
+    // Format Response based on batch vs single topic
+    let batchList = [];
+    if (Array.isArray(topics) && topics.length > 0) {
+      batchList = topics;
+    } else if (Array.isArray(targetTopic)) {
+      batchList = targetTopic;
+    } else if (typeof targetTopic === 'string' && targetTopic.includes(',')) {
+      batchList = targetTopic.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (targetTopic === 'batch') {
+      batchList = Object.keys(parsedResult);
+    }
+
+    // Batch Response (e.g. 4 remaining topics at once)
+    if (batchList.length > 0) {
+      return res.status(200).json({
+        success: true,
+        isBatch: true,
+        topics: batchList,
+        insights: parsedResult,
+        meta: {
+          provider,
+          model: process.env.AI_MODEL || (provider === 'openrouter' ? 'openai/gpt-5.6-luna' : 'gpt-4o-mini'),
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Single Topic Response
     if (targetTopic && targetTopic !== 'all') {
       const singleInsightText = parsedResult.insight || parsedResult[targetTopic] || rawJsonText;
       return res.status(200).json({
@@ -144,6 +171,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // All 6 Topics Response
     return res.status(200).json({
       success: true,
       insights: parsedResult,
