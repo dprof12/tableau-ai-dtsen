@@ -151,12 +151,6 @@ function attachAllEventListeners() {
         onTableauFilterChanged
       );
       state.filterUnregisterHandlers.push(unregFilter);
-
-      const unregSelection = ws.addEventListener(
-        tableau.TableauEventType.MarkSelectionChanged,
-        onTableauFilterChanged
-      );
-      state.filterUnregisterHandlers.push(unregSelection);
     } catch (e) {
       console.warn('[Tableau AI DTSEN] Listener warning on worksheet:', ws.name, e);
     }
@@ -177,22 +171,20 @@ function attachAllEventListeners() {
   }
 }
 
+// Track last processed payload fingerprint to avoid duplicate calls
+let lastPayloadFingerprint = '';
+
 /**
  * 4. Debounced Filter Handler
  */
 function onTableauFilterChanged() {
-  // Suppress event storms when Tableau worksheets are still initially mounting
   if (state.isInitializing) {
     return;
   }
 
   clearTimeout(state.debounceTimer);
-  
-  const isEn = state.language === 'en';
-  setLoadingState(true, isEn ? 'Updating DTSEN data...' : 'Sedang menganalisis dan memproses insight...');
 
   state.debounceTimer = setTimeout(() => {
-    state.cachedInsights = {};
     triggerDataExtractionAndAnalysis();
   }, state.debounceDelayMs);
 }
@@ -292,6 +284,24 @@ async function triggerDataExtractionAndAnalysis() {
     }
 
     state.extractedPayload = payload;
+
+    // Check payload fingerprint: if data hasn't changed at all, don't waste API calls!
+    const currentFingerprint = JSON.stringify({
+      filters: payload.appliedFilters,
+      totalRows: payload.totalRows,
+      sheets: payload.sheetsData?.map(s => `${s.worksheetName}:${s.rows?.length}`)
+    });
+
+    if (currentFingerprint === lastPayloadFingerprint && state.cachedInsights[state.activeTopic]) {
+      console.log('[Tableau AI DTSEN] Data unchanged, serving from active memory.');
+      renderInsightMarkdown(state.cachedInsights[state.activeTopic]);
+      setLoadingState(false);
+      state.isGenerating = false;
+      return;
+    }
+
+    lastPayloadFingerprint = currentFingerprint;
+    state.cachedInsights = {}; // Data changed, clear cache
 
     // STEP 1: Fast Priority Fetch for Active Topic (takes only ~2.5 - 3.0s!)
     const activeResult = await fetchSingleTopic(state.activeTopic, payload, currentSignal);
