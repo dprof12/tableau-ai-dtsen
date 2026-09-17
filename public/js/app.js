@@ -73,7 +73,13 @@ async function switchTopic(newTopic) {
     return;
   }
 
-  // If not yet ready, fetch this specific topic with high priority
+  // If background generation is actively running, just show loading and wait for it (DON'T trigger duplicate API calls!)
+  if (state.isGenerating) {
+    setLoadingState(true, 'Sedang memproses insight untuk topik ini...');
+    return;
+  }
+
+  // If not yet cached and idle, fetch this specific topic
   if (state.extractedPayload) {
     setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
     try {
@@ -86,9 +92,7 @@ async function switchTopic(newTopic) {
         }
       }
     } catch (e) {
-      if (e.name !== 'AbortError') {
-        showError('Gagal memuat insight untuk topik ini.');
-      }
+      showError('Gagal memuat insight untuk topik ini.');
     }
   }
 }
@@ -357,7 +361,15 @@ async function triggerDataExtractionAndAnalysis() {
         }
       }
       console.log(`[Tableau AI DTSEN] Successfully batch prefetched ${remainingBatch.length} remaining topics:`, remainingBatch);
+      
+      // If user switched to one of the batch topics while it was fetching, render it now!
+      if (state.cachedInsights[state.activeTopic]) {
+        renderInsightMarkdown(state.cachedInsights[state.activeTopic]);
+        setLoadingState(false);
+      }
     }
+
+    state.isGenerating = false;
 
   } catch (error) {
     if (runTicket !== activeGenerationTicket) {
@@ -430,11 +442,14 @@ async function fetchWithRetry(url, options, maxRetries = 2, delayMs = 1200) {
     try {
       const response = await fetch(url, options);
       
-      if (!response.ok && [502, 503, 504].includes(response.status) && attempt < maxRetries) {
-        throw new Error(`Transient server error: ${response.status}`);
+      const rawText = await response.text();
+      let result = null;
+      try {
+        result = JSON.parse(rawText);
+      } catch (jsonErr) {
+        throw new Error(rawText.slice(0, 120) || `Server returned non-JSON response (${response.status})`);
       }
 
-      const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error || `Server error: ${response.status}`);
       }
