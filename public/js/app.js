@@ -9,9 +9,9 @@ const state = {
   availableWorksheets: [],
   filterUnregisterHandlers: [],
   debounceTimer: null,
-  debounceDelayMs: 600,
-  currentGenerationId: 0,
-  isInitializing: true,
+  debounceDelayMs: 400,
+  activeAbortController: null,
+  prefetchAbortController: null,
   isTableauEnvironment: false,
   language: 'id',
   activeTopic: 'overview',
@@ -53,8 +53,10 @@ function initTopicPillListeners() {
   });
 }
 
-// Switch Active Topic Pill - 100% PASSIVE (Only reads from memory cache, NEVER calls API!)
-function switchTopic(newTopic) {
+/**
+ * Switch Active Topic Pill with Instant Render from Memory Cache
+ */
+async function switchTopic(newTopic) {
   state.activeTopic = newTopic;
 
   // Update UI Pills styling
@@ -64,15 +66,31 @@ function switchTopic(newTopic) {
     p.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
   });
 
-  // 1. If insight for this topic is already in memory cache, render instantly (0ms lag!)
+  // If insight for this topic is already in memory cache, render instantly (0ms lag!)
   if (state.cachedInsights[newTopic]) {
     renderInsightMarkdown(state.cachedInsights[newTopic]);
     setLoadingState(false);
     return;
   }
 
-  // 2. If not yet in cache (still being processed by background prefetch 1-2-3456), show loading state
-  setLoadingState(true, 'Sedang memproses dan menyiapkan insight topik ini...');
+  // If not yet ready, fetch this specific topic with high priority
+  if (state.extractedPayload) {
+    setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
+    try {
+      const singleResult = await fetchSingleTopic(newTopic, state.extractedPayload);
+      if (singleResult && singleResult.insight) {
+        state.cachedInsights[newTopic] = singleResult.insight;
+        if (state.activeTopic === newTopic) {
+          renderInsightMarkdown(singleResult.insight);
+          setLoadingState(false);
+        }
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        showError('Gagal memuat insight untuk topik ini.');
+      }
+    }
+  }
 }
 
 /**
@@ -90,12 +108,7 @@ function initTableauExtension() {
       attachAllEventListeners();
       
       // Initial Fast Insight Generation
-      triggerDataExtractionAndAnalysis().finally(() => {
-        // Allow filter listeners to process changes only after initial load finishes settling
-        setTimeout(() => {
-          state.isInitializing = false;
-        }, 1000);
-      });
+      triggerDataExtractionAndAnalysis();
 
     }).catch((err) => {
       console.error('[Tableau AI DTSEN] initializeAsync error:', err);
@@ -111,7 +124,6 @@ function initTableauExtension() {
  */
 function setupBrowserPreviewMode() {
   state.isTableauEnvironment = false;
-  state.isInitializing = false;
   detectDashboardLanguage();
   triggerDataExtractionAndAnalysis();
 }
@@ -158,31 +170,36 @@ function attachAllEventListeners() {
   }
 }
 
-// Track active generation ticket
-let activeGenerationTicket = 0;
-let lastPayloadFingerprint = '';
-
 /**
  * 4. Debounced Filter Handler
  */
 function onTableauFilterChanged() {
-  if (state.isInitializing) {
-    return;
-  }
-
   clearTimeout(state.debounceTimer);
+  
+  const isEn = state.language === 'en';
+  setLoadingState(true, isEn ? 'Updating DTSEN data...' : 'Sedang menganalisis dan memproses insight...');
 
   state.debounceTimer = setTimeout(() => {
+    state.cachedInsights = {};
     triggerDataExtractionAndAnalysis();
   }, state.debounceDelayMs);
 }
 
 /**
- * 5. Extract Data & Execute Strict Sequential 1 - 2 - (3456) Flow
+ * 5. Extract Data & Execute Fast Hybrid Priority + Background Prefetch
  */
 async function triggerDataExtractionAndAnalysis() {
-  // Generate a brand new ticket for this run
-  const runTicket = ++activeGenerationTicket;
+  // Abort previous priority & background requests
+  if (state.activeAbortController) {
+    state.activeAbortController.abort();
+  }
+  if (state.prefetchAbortController) {
+    state.prefetchAbortController.abort();
+  }
+
+  state.activeAbortController = new AbortController();
+  state.prefetchAbortController = new AbortController();
+  const currentSignal = state.activeAbortController.signal;
 
   state.isGenerating = true;
   setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
@@ -264,96 +281,25 @@ async function triggerDataExtractionAndAnalysis() {
 
     state.extractedPayload = payload;
 
-    // Check payload fingerprint: if data hasn't changed at all, serve from cache and STOP!
-    const currentFingerprint = JSON.stringify({
-      filters: payload.appliedFilters,
-      totalRows: payload.totalRows,
-      sheets: payload.sheetsData?.map(s => `${s.worksheetName}:${s.rows?.length}`)
-    });
-
-    if (currentFingerprint === lastPayloadFingerprint && state.cachedInsights[state.activeTopic]) {
-      console.log('[Tableau AI DTSEN] Data unchanged, serving from active memory.');
-      renderInsightMarkdown(state.cachedInsights[state.activeTopic]);
-      setLoadingState(false);
-      state.isGenerating = false;
-      return;
-    }
-
-    // New data: reset fingerprint and memory cache
-    lastPayloadFingerprint = currentFingerprint;
-    state.cachedInsights = {};
-
-    // =========================================================================
-    // STEP 1 of 3: Request Active Topic (e.g. 'overview') -> Render immediately
-    // =========================================================================
-    const activeTopicName = state.activeTopic;
-    const resActive = await fetchSingleTopic(activeTopicName, payload);
+    // STEP 1: Fast Priority Fetch for Active Topic (takes only ~2.5 - 3.0s!)
+    const activeResult = await fetchSingleTopic(state.activeTopic, payload, currentSignal);
     
-    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
-    if (runTicket !== activeGenerationTicket) {
-      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded by #${activeGenerationTicket}. Discarding Step 1.`);
-      return;
-    }
-
-    if (resActive && resActive.insight) {
-      state.cachedInsights[activeTopicName] = resActive.insight;
-      renderInsightMarkdown(resActive.insight);
-      setLoadingState(false);
-      state.isGenerating = false;
-    }
-
-    // =========================================================================
-    // STEP 2 of 3: Request 2nd Priority Topic (e.g. 'desil') -> Prefetch silently
-    // =========================================================================
-    const secondTopicName = activeTopicName === 'desil' ? 'overview' : 'desil';
-    const resSecond = await fetchSingleTopic(secondTopicName, payload);
-
-    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
-    if (runTicket !== activeGenerationTicket) {
-      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded. Discarding Step 2.`);
-      return;
-    }
-
-    if (resSecond && resSecond.insight) {
-      state.cachedInsights[secondTopicName] = resSecond.insight;
-      console.log(`[Tableau AI DTSEN] Prefetched 2nd priority topic '${secondTopicName}' silently.`);
-    }
-
-    // =========================================================================
-    // STEP 3 of 3: Request Remaining 4 Topics at Once in 1 Single Batch Call!
-    // =========================================================================
-    const remainingBatch = state.allTopics.filter(t => t !== activeTopicName && t !== secondTopicName);
-    
-    const resBatch = await fetchBatchTopics(remainingBatch, payload);
-
-    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
-    if (runTicket !== activeGenerationTicket) {
-      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded. Discarding Step 3.`);
-      return;
-    }
-
-    if (resBatch && resBatch.insights) {
-      for (const [topicKey, text] of Object.entries(resBatch.insights)) {
-        if (text && typeof text === 'string') {
-          state.cachedInsights[topicKey] = text;
-        }
-      }
-      console.log(`[Tableau AI DTSEN] Successfully batch prefetched ${remainingBatch.length} remaining topics:`, remainingBatch);
-      
-      // If user switched to one of the batch topics while it was fetching, render it now!
-      if (state.cachedInsights[state.activeTopic]) {
-        renderInsightMarkdown(state.cachedInsights[state.activeTopic]);
-        setLoadingState(false);
-      }
-    }
-
     state.isGenerating = false;
+
+    if (activeResult && activeResult.insight) {
+      state.cachedInsights[state.activeTopic] = activeResult.insight;
+      renderInsightMarkdown(activeResult.insight);
+      setLoadingState(false);
+    }
+
+    // STEP 2: Silent Background Prefetching for remaining topics
+    launchBackgroundPrefetch(payload, state.prefetchAbortController.signal);
 
   } catch (error) {
-    if (runTicket !== activeGenerationTicket) {
-      return; // Discard superseded errors
-    }
     state.isGenerating = false;
+    if (error.name === 'AbortError') {
+      return;
+    }
     console.error('[Tableau AI DTSEN] Error generating insight:', error);
     const isEn = state.language === 'en';
     
@@ -377,7 +323,7 @@ async function triggerDataExtractionAndAnalysis() {
 /**
  * Fetch Single Topic Fast (~2.5s)
  */
-async function fetchSingleTopic(topicName, basePayload) {
+async function fetchSingleTopic(topicName, basePayload, signal) {
   const requestBody = {
     ...basePayload,
     targetTopic: topicName
@@ -386,29 +332,35 @@ async function fetchSingleTopic(topicName, basePayload) {
   const result = await fetchWithRetry('/api/generate-dtsen-insight', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify(requestBody),
+    signal: signal
   }, 2, 1200);
 
   return result;
 }
 
 /**
- * Fetch Batch Topics in 1 Single Request
+ * Silent Background Prefetch for Remaining Topics
  */
-async function fetchBatchTopics(topicList, basePayload) {
-  const requestBody = {
-    ...basePayload,
-    targetTopic: 'batch',
-    topics: topicList
-  };
+async function launchBackgroundPrefetch(basePayload, abortSignal) {
+  const remainingTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
 
-  const result = await fetchWithRetry('/api/generate-dtsen-insight', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody)
-  }, 2, 1500);
+  for (const topic of remainingTopics) {
+    if (abortSignal.aborted) break;
 
-  return result;
+    try {
+      const res = await fetchSingleTopic(topic, basePayload, abortSignal);
+      if (res && res.insight) {
+        state.cachedInsights[topic] = res.insight;
+        console.log(`[Tableau AI DTSEN] Prefetched topic '${topic}' silently in background.`);
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        break;
+      }
+      console.warn(`[Tableau AI DTSEN] Silent prefetch for topic '${topic}' skipped:`, e);
+    }
+  }
 }
 
 /**
@@ -420,14 +372,11 @@ async function fetchWithRetry(url, options, maxRetries = 2, delayMs = 1200) {
     try {
       const response = await fetch(url, options);
       
-      const rawText = await response.text();
-      let result = null;
-      try {
-        result = JSON.parse(rawText);
-      } catch (jsonErr) {
-        throw new Error(rawText.slice(0, 120) || `Server returned non-JSON response (${response.status})`);
+      if (!response.ok && [502, 503, 504].includes(response.status) && attempt < maxRetries) {
+        throw new Error(`Transient server error: ${response.status}`);
       }
 
+      const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error || `Server error: ${response.status}`);
       }
