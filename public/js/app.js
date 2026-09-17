@@ -9,7 +9,8 @@ const state = {
   availableWorksheets: [],
   filterUnregisterHandlers: [],
   debounceTimer: null,
-  debounceDelayMs: 400,
+  debounceDelayMs: 800,
+  isInitializing: true,
   activeAbortController: null,
   prefetchAbortController: null,
   isTableauEnvironment: false,
@@ -108,7 +109,12 @@ function initTableauExtension() {
       attachAllEventListeners();
       
       // Initial Fast Insight Generation
-      triggerDataExtractionAndAnalysis();
+      triggerDataExtractionAndAnalysis().finally(() => {
+        // Allow filter listeners to process changes only after initial load finishes settling
+        setTimeout(() => {
+          state.isInitializing = false;
+        }, 1000);
+      });
 
     }).catch((err) => {
       console.error('[Tableau AI DTSEN] initializeAsync error:', err);
@@ -124,6 +130,7 @@ function initTableauExtension() {
  */
 function setupBrowserPreviewMode() {
   state.isTableauEnvironment = false;
+  state.isInitializing = false;
   detectDashboardLanguage();
   triggerDataExtractionAndAnalysis();
 }
@@ -174,6 +181,11 @@ function attachAllEventListeners() {
  * 4. Debounced Filter Handler
  */
 function onTableauFilterChanged() {
+  // Suppress event storms when Tableau worksheets are still initially mounting
+  if (state.isInitializing) {
+    return;
+  }
+
   clearTimeout(state.debounceTimer);
   
   const isEn = state.language === 'en';

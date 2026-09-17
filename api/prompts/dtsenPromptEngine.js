@@ -70,44 +70,44 @@ Anda WAJIB mengembalikan HANYA sebuah objek JSON valid dengan TEPAT 6 kunci topi
 PANDUAN PENULISAN & GAYA BAHASA (MANDATORI):
 1. ATURAN KHUSUS TOPIK RINGKASAN (OVERVIEW):
    - DILARANG menyebutkan tahun untuk data DTSEN.
-   - Narasi mencakup 4 lapis fakta data: (1) Total populasi terdata (individu & keluarga), (2) Realisasi penetrasi bantuan sosial individu & keluarga dengan istilah netral ("terdaftar sebagai penerima" dan "kelompok non-penerima"), (3) Sorotan penetrasi kelompok desil kunci (Desil 1, Desil 2-4, Desil 5-6) lengkap dengan volume jiwa dan persentase, serta (4) Benang merah spasial wilayah dan program anggaran terbesar.
-   - SETIAP KALI menyebutkan jumlah jiwa penerima per wilayah (misal: Jakarta Timur, Jakarta Barat), WAJIB menyertakan persentase terhadap total penduduk di wilayah tersebut (contoh: "Jakarta Timur (1,32 Juta jiwa atau 45,59% dari total penduduk wilayahnya)").
+   - Narasi mencakup 4 lapis fakta data: (1) Total populasi terdata (individu & keluarga) sesuai data aktif, (2) Realisasi penetrasi bantuan sosial individu & keluarga dengan istilah netral ("terdaftar sebagai penerima" dan "kelompok non-penerima"), (3) Sorotan penetrasi kelompok desil kunci (Desil 1, Desil 2–4, Desil 5–6) lengkap dengan volume jiwa dan persentase aktual, serta (4) Benang merah spasial wilayah dan program anggaran terbesar.
+   - SETIAP KALI menyebutkan jumlah jiwa penerima per wilayah (misal: Jakarta Timur, Jakarta Barat), WAJIB menyertakan persentase terhadap total penduduk di wilayah tersebut berdasarkan data yang tampil.
 2. ATURAN KHUSUS TOPIK PROFIL DESIL (DESIL):
    - MURNI SEBUTKAN NAMA KELOMPOK DESIL (Desil 1, Desil 2–4, Desil 5–6, Desil 7–10). DILARANG KERAS menambahkan label kualitatif spekulatif seperti "kelompok sangat miskin", "kelompok rentan", "kelompok miskin", atau "kelompok mampu".
    - DILARANG menggunakan kata "sekitar" untuk angka riil/persentase. Gunakan kata kerja presisi ("mencapai", "sebesar", "tercatat").
-   - Wajib menyajikan analisis perbandingan kontribusi proporsi penerima keseluruhan (contoh: Desil 7–10 menyumbang 41,62% dari total penerima vs Desil 1 yang menyumbang 4,36%).
+   - Wajib menyajikan analisis perbandingan kontribusi proporsi penerima keseluruhan antar kelompok desil (misal: proporsi penerima di Desil 7–10 terhadap total penerima bansos dibanding kontribusi Desil 1).
    - Gunakan notasi standar bertanda en-dash: **Desil 1–4**, **Desil 2–4**, **Desil 7–10**.
 3. ATURAN KHUSUS TOPIK SEBARAN WILAYAH (WILAYAH):
-   - Soroti beban demografis 3 wilayah terbesar (Jakarta Timur, Jakarta Barat, Jakarta Selatan) beserta persentase akumulasinya (73,29% dari total populasi DKI).
-   - Sajikan perbandingan volume penerima dan persentase penetrasi langsung dalam satu nafas (contoh: "Jakarta Timur sebesar 45,59% (1.323.754 penerima)").
-   - Sajikan perbandingan wilayah penetrasi tertinggi (Jakarta Pusat 52,87%, Jakarta Barat 52,66%, Kepulauan Seribu 50,05%) vs terendah (Jakarta Timur 45,59%, Jakarta Selatan 47,60%, Jakarta Utara 49,25%).
-   - Hitung selisih disparitas spasial tertinggi vs terendah (7,28 poin persentase) dan berikan implikasi strategis netral (Jakarta Timur sebagai prioritas penjangkauan sasaran vs Jakarta Barat dengan beban ganda).
+   - Identifikasi wilayah-wilayah dengan beban demografis terbesar serta persentase akumulasinya terhadap total populasi data aktif.
+   - Sajikan perbandingan volume penerima dan persentase penetrasi langsung dalam satu nafas secara presisi dari data visual aktif.
+   - Sajikan perbandingan wilayah dengan persentase penetrasi bansos tertinggi vs terendah.
+   - Hitung selisih disparitas spasial (poin persentase selisih tertinggi vs terendah) dan berikan implikasi strategis netral.
    - DILARANG menggunakan kata "sekitar" dan DILARANG menyebut tahun.
 4. ATURAN KHUSUS TOPIK POLA USIA & MULTI-BANSOS (INTEGRASI):
-   - Jelaskan dominasi penerima tunggal (1 program) yakni 4.331.434 individu (88,27%) vs multi-program (2-4 bansos) yakni 575.444 individu (11,73%).
-   - Rincikan secara bertingkat: 2 program (558.869 individu), 3 program (16.500 individu), dan 4 program (75 individu).
-   - Uraikan distribusi siklus hidup antargenerasi: KJP menopang pendidikan anak dan pelajar, subsidi pangan PDPEMDA bagi usia produktif, dan KLJ bagi lansia.
-   - Soroti irisan kelompok multi-program pada rentang usia 11–15 tahun dan 16–20 tahun (kombinasi PDPEMDA, KJP, dan BPMS).
+   - Jelaskan proporsi penerima bansos tunggal (1 program) vs penerima multi-program (2, 3, hingga 4 bansos) bersumber murni dari data aktif.
+   - Rincikan secara bertingkat volume jiwa pada kelompok penerima 2 program, 3 program, dan 4 program.
+   - Uraikan distribusi siklus hidup antargenerasi: program penopang pendidikan anak dan pelajar, subsidi pangan bagi usia produktif, dan bantuan bagi lansia.
+   - Soroti kelompok rentang usia yang memiliki irisan penerima multi-program tertinggi.
    - DILARANG mengeluhkan ketersediaan data (DILARANG menulis "data belum tersedia secara menyeluruh").
    - DILARANG menambahkan kalimat opini audit/kebijakan normatif di penutup paragraf.
    - DILARANG menggunakan kata "sekitar".
 5. ATURAN KHUSUS TOPIK ALOKASI ANGGARAN (ANGGARAN):
-   - Sajikan total alokasi fiskal terukur (Rp5,56 Triliun) dan perbandingan serapan anggaran terbesar (KJP Rp3,24 Triliun / 58,35% untuk 776.789 penerima) vs penerima volume terbesar (PDPEMDA 4.305.718 individu dengan Rp1,92 Triliun / 34,57%).
-   - Rincikan program pendidikan lanjutan KJMU (Rp305,09 Miliar untuk 19.002 penerima) dan BPMS (Rp88,23 Miliar untuk 29.572 penerima).
-   - Sajikan perbandingan indikatif rata-rata biaya per penerima (unit cost): KJMU Rp16,06 Juta/penerima, KJP Rp4,18 Juta/penerima, BPMS Rp2,98 Juta/penerima, PDPEMDA Rp446 Ribu/penerima.
-   - Untuk program nominal Rp0 (KLJ, KPDJ, KAJ), narasikan secara netral sebagai nilai Rp0 pada ringkasan pembiayaan aktif tanpa berspekulasi rekonsiliasi audit data internal.
+   - Sajikan total alokasi fiskal terukur serta perbandingan serapan anggaran terbesar vs volume penerima terbesar berdasarkan data aktif.
+   - Rincikan program-program pendidikan dan bantuan sosial spesifik yang tercatat menyerap anggaran.
+   - Sajikan perbandingan indikatif rata-rata biaya per penerima (unit cost) antar program yang memiliki data anggaran.
+   - Untuk program dengan nominal tertera Rp0, narasikan secara netral sebagai nilai Rp0 pada ringkasan pembiayaan aktif tanpa berspekulasi rekonsiliasi audit data internal.
    - DILARANG menggunakan kata "sekitar" dan DILARANG menyebut tahun.
 6. ATURAN KHUSUS TOPIK TEMUAN & ANOMALI (TEMUAN):
    - MURNI SEBUTKAN NAMA KELOMPOK DESIL (Desil 1, Desil 2–4, Desil 7–10). DILARANG menambahkan label kualitatif seperti "kelompok miskin terbawah" atau "kelompok mampu".
-   - Uraikan potensi Exclusion Error secara konkret: Desil 1 tercatat 51,96% (231.586 individu) dari total 445.705 belum menerima bansos, serta akumulasi Desil 2–4 masih terdapat 42,12% (816.217 individu) yang belum terjangkau.
-   - Uraikan potensi Inclusion Error secara konkret: Desil 7–10 tercatat 43,28% (2.042.518 individu) dari total 4.719.817 populasi pada desil tersebut masih menerima bantuan.
-   - Soroti anomali multi-program: 16.500 individu di 3 program dan 75 individu di 4 program (irisan kombinasi PDPEMDA, KPDJ, KJP, BPMS).
-   - Sebutkan secara ringkas faktor rekonsiliasi warga berstatus "Belum Diperingkatkan" dan "Tidak Terdata" yang memerlukan pemutakhiran berkelanjutan.
+   - Uraikan potensi Exclusion Error secara konkret: hitung dan sajikan persentase serta jumlah jiwa di Desil 1 dan Desil 2–4 yang tercatat belum menerima bansos dari total populasi pada masing-masing desil tersebut.
+   - Uraikan potensi Inclusion Error secara konkret: hitung dan sajikan persentase serta jumlah jiwa di Desil 7–10 yang masih tercatat menerima bantuan sosial dari total populasi kelompok desil tersebut.
+   - Soroti anomali multi-program: volume individu yang menerima 3 program dan 4 program sekaligus.
+   - Sebutkan secara ringkas faktor rekonsiliasi warga berstatus "Belum Diperingkatkan" dan "Tidak Terdata" yang memerlukan pemutakhiran data.
    - DILARANG menggunakan kata "sekitar" dan DILARANG menyebut tahun.
-7. JELAS, LENGKAP & BERBOBOT: Sajikan narasi yang utuh, komprehensif, dan kaya data. Tidak perlu dipotong terlalu pendek; jelaskan angka, konteks perbandingan, dan makna implikasinya secara mengalir dan tuntas.
+7. JELAS, LENGKAP & BERBOBOT: Sajikan narasi yang utuh, komprehensif, dan kaya data aktual. Tidak perlu dipotong terlalu pendek; jelaskan angka, konteks perbandingan, dan makna implikasinya secara mengalir dan tuntas.
 8. ANTI-ISTILAH DATABASE/SISTEM: DILARANG KERAS menggunakan kata-kata sistem database seperti "pada visual", "data yang terfilter", "baris", "kolom", "dataset", "tabel data", "tampilan".
 9. BEBAS POLA AI KAKU: DILARANG menggunakan tanda hubung panjang (em-dash "—") atau format daftar butir (bullet points).
-10. FORMAT TEBAL (BOLD): Gunakan **bold** untuk angka kunci (contoh: **49,00%**, **Rp3,24 Triliun**, **4,9 Juta jiwa**, **51,60%**), nama wilayah, dan nama program (KJP, PDPEMDA, KLJ, dsb.).
+10. FORMAT TEBAL (BOLD): Gunakan **bold** untuk angka kunci (contoh: persentase, nominal anggaran, jumlah jiwa), nama wilayah, dan nama program.
 11. FORMAT ANGKA & MATA UANG RUPIAH:
    - Persentase WAJIB dibulatkan ke maksimal 2 angka di belakang koma dengan koma desimal Bahasa Indonesia (contoh: **49,00%**, **56,87%**, **59,56%**; DILARANG mencetak 4 desimal seperti 48,9982%).
    - Nilai anggaran disajikan secara elegan ke satuan Triliun atau Miliar (contoh: **Rp3,24 Triliun**, **Rp1,92 Triliun**, **Rp305,09 Miliar**).
@@ -196,36 +196,36 @@ function getTopicSpecificRule(topic) {
   switch (topic) {
     case 'overview':
       return `- DILARANG menyebut tahun untuk data DTSEN.
-- Narasi 4 lapis fakta data: (1) Total populasi terdata (10 Jt individu & 3,4 Jt keluarga), (2) Penetrasi bansos individu & keluarga dengan istilah netral ("terdaftar sebagai penerima" dan "kelompok non-penerima"), (3) Penetrasi desil kunci (Desil 1, Desil 2-4, Desil 5-6), dan (4) Benang merah spasial wilayah & anggaran.
-- SETIAP KALI menyebutkan jumlah jiwa penerima per wilayah (misal: Jakarta Timur, Jakarta Barat), WAJIB menyertakan persentase terhadap total penduduk di wilayah tersebut (contoh: "Jakarta Timur (1,32 Juta jiwa atau 45,59% dari total penduduk wilayahnya)").`;
+- Narasi 4 lapis fakta data: (1) Total populasi terdata (individu & keluarga) sesuai data aktif, (2) Realisasi penetrasi bansos individu & keluarga dengan istilah netral ("terdaftar sebagai penerima" dan "kelompok non-penerima"), (3) Penetrasi kelompok desil kunci (Desil 1, Desil 2–4, Desil 5–6) lengkap dengan persentase dan volume jiwa aktual, serta (4) Benang merah spasial wilayah dan program anggaran terbesar.
+- SETIAP KALI menyebutkan jumlah jiwa penerima per wilayah (misal: Jakarta Timur, Jakarta Barat), WAJIB menyertakan persentase terhadap total penduduk di wilayah tersebut berdasarkan data aktif.`;
 
     case 'desil':
       return `- MURNI sebutkan nama kelompok desil (Desil 1, Desil 2–4, Desil 5–6, Desil 7–10) TANPA label kualitatif (dilarang menyebut 'sangat miskin/rentan/mampu').
-- Soroti perbandingan kontribusi penerima: Desil 7–10 menyumbang 41,62% dari total seluruh penerima vs Desil 1 yang hanya menyumbang 4,36%.
+- Soroti perbandingan kontribusi proporsi penerima: hitung dan sajikan kontribusi kelompok Desil 7–10 terhadap total penerima bansos dibanding kontribusi kelompok Desil 1.
 - Gunakan notasi standar: Desil 1–4, Desil 2–4, Desil 7–10.`;
 
     case 'wilayah':
-      return `- Soroti beban demografis 3 wilayah terbesar (Jaktim, Jakbar, Jaksel = 73,29% total populasi).
-- Sandingkan volume penerima dan persentase penetrasi langsung dalam satu nafas (contoh: "Jakarta Timur sebesar 45,59% (1.323.754 penerima)").
-- Sajikan perbandingan penetrasi tertinggi (Jakpus 52,87%, Jakbar 52,66%, Kep. Seribu 50,05%) vs terendah (Jaktim 45,59%, Jaksel 47,60%, Jakut 49,25%).
-- Hitung selisih disparitas spasial (7,28 poin persentase) secara netral.`;
+      return `- Identifikasi dan soroti wilayah-wilayah dengan beban demografis terbesar beserta akumulasi persentasenya terhadap total populasi data aktif.
+- Sandingkan volume penerima dan persentase penetrasi langsung dalam satu nafas secara presisi dari data visual aktif.
+- Sajikan perbandingan wilayah dengan tingkat penetrasi bantuan sosial tertinggi vs terendah.
+- Hitung selisih disparitas spasial (poin persentase) secara netral.`;
 
     case 'integrasi':
-      return `- Jelaskan dominasi penerima tunggal (4.331.434 individu / 88,27%) vs multi-bansos (575.444 individu / 11,73%).
-- Rincikan bertingkat: 2 bansos (558.869), 3 bansos (16.500), 4 bansos (75 jiwa).
-- Distribusi siklus hidup: KJP anak/pelajar, PDPEMDA usia produktif, KLJ lansia, serta irisan usia 11–15 & 16–20 tahun (PDPEMDA, KJP, BPMS).
+      return `- Jelaskan proporsi penerima bansos tunggal (1 program) vs penerima multi-bansos (2, 3, hingga 4 bansos) bersumber murni dari data aktif.
+- Rincikan secara bertingkat volume jiwa pada kelompok 2 program, 3 program, dan 4 program.
+- Uraikan distribusi siklus hidup: program anak/pelajar, usia produktif, lansia, serta identifikasi kelompok usia dengan irisan multi-program tertinggi.
 - DILARANG mengeluhkan ketersediaan data dan DILARANG menambah kalimat opini kebijakan di akhir.`;
 
     case 'anggaran':
-      return `- Sajikan total fiskal terukur (Rp5,56 Triliun) dan perbandingan serapan terbesar (KJP Rp3,24 T / 58,35% untuk 776.789 penerima) vs volume terbesar (PDPEMDA 4.305.718 individu / Rp1,92 T / 34,57%), KJMU (Rp305,09 M), BPMS (Rp88,23 M).
-- Sajikan indikatif unit cost: KJMU Rp16,06 Jt, KJP Rp4,18 Jt, BPMS Rp2,98 Jt, PDPEMDA Rp446 Rb.
-- Program nominal Rp0 (KLJ, KPDJ, KAJ) dinarasikan netral.`;
+      return `- Sajikan total alokasi fiskal terukur dan perbandingan serapan anggaran terbesar vs volume penerima terbesar berdasarkan data aktif.
+- Rincikan program-program spesifik yang menyerap anggaran terbesar serta perbandingan indikatif rata-rata biaya per penerima (unit cost).
+- Program dengan nominal tertera Rp0 dinarasikan secara netral.`;
 
     case 'temuan':
-      return `- MURNI sebutkan nama desil (Desil 1, Desil 2–4, Desil 7–10) tanpa label kualitatif.
-- Exclusion Error: Desil 1 tercatat 51,96% (231.586 individu) dari 445.705 belum menerima bansos, Desil 2–4 terdapat 42,12% (816.217 individu) belum terjangkau.
-- Inclusion Error: Desil 7–10 tercatat 43,28% (2.042.518 individu) dari 4.719.817 populasi pada desil tersebut masih menerima bantuan.
-- Anomali duplikasi: 16.500 individu (3 bansos) dan 75 individu (4 bansos).
+      return `- MURNI sebutkan nama kelompok desil (Desil 1, Desil 2–4, Desil 7–10) tanpa label kualitatif.
+- Exclusion Error: hitung dan sajikan persentase serta volume jiwa Desil 1 dan Desil 2–4 yang tercatat belum menerima bansos dari populasi pada masing-masing desil.
+- Inclusion Error: hitung dan sajikan persentase serta volume jiwa Desil 7–10 yang masih menerima bantuan sosial dari total populasi desil tersebut.
+- Anomali duplikasi: soroti volume individu penerima 3 bansos dan 4 bansos sekaligus.
 - Rekonsiliasi status Belum Diperingkatkan dan Tidak Terdata.`;
 
     default:
