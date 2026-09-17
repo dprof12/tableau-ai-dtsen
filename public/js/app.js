@@ -9,10 +9,9 @@ const state = {
   availableWorksheets: [],
   filterUnregisterHandlers: [],
   debounceTimer: null,
-  debounceDelayMs: 800,
+  debounceDelayMs: 600,
+  currentGenerationId: 0,
   isInitializing: true,
-  activeAbortController: null,
-  prefetchAbortController: null,
   isTableauEnvironment: false,
   language: 'id',
   activeTopic: 'overview',
@@ -177,7 +176,8 @@ function attachAllEventListeners() {
   }
 }
 
-// Track last processed payload fingerprint to avoid duplicate calls
+// Track active generation ticket
+let activeGenerationTicket = 0;
 let lastPayloadFingerprint = '';
 
 /**
@@ -196,20 +196,11 @@ function onTableauFilterChanged() {
 }
 
 /**
- * 5. Extract Data & Execute Fast Hybrid Priority + Background Prefetch
+ * 5. Extract Data & Execute Strict Sequential 1 - 2 - (3456) Flow
  */
 async function triggerDataExtractionAndAnalysis() {
-  // Abort previous priority & background requests
-  if (state.activeAbortController) {
-    state.activeAbortController.abort();
-  }
-  if (state.prefetchAbortController) {
-    state.prefetchAbortController.abort();
-  }
-
-  state.activeAbortController = new AbortController();
-  state.prefetchAbortController = new AbortController();
-  const currentSignal = state.activeAbortController.signal;
+  // Generate a brand new ticket for this run
+  const runTicket = ++activeGenerationTicket;
 
   state.isGenerating = true;
   setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
@@ -291,7 +282,7 @@ async function triggerDataExtractionAndAnalysis() {
 
     state.extractedPayload = payload;
 
-    // Check payload fingerprint: if data hasn't changed at all, don't waste API calls!
+    // Check payload fingerprint: if data hasn't changed at all, serve from cache and STOP!
     const currentFingerprint = JSON.stringify({
       filters: payload.appliedFilters,
       totalRows: payload.totalRows,
@@ -306,28 +297,73 @@ async function triggerDataExtractionAndAnalysis() {
       return;
     }
 
+    // New data: reset fingerprint and memory cache
     lastPayloadFingerprint = currentFingerprint;
-    state.cachedInsights = {}; // Data changed, clear cache
+    state.cachedInsights = {};
 
-    // STEP 1: Fast Priority Fetch for Active Topic (takes only ~2.5 - 3.0s!)
-    const activeResult = await fetchSingleTopic(state.activeTopic, payload, currentSignal);
+    // =========================================================================
+    // STEP 1 of 3: Request Active Topic (e.g. 'overview') -> Render immediately
+    // =========================================================================
+    const activeTopicName = state.activeTopic;
+    const resActive = await fetchSingleTopic(activeTopicName, payload);
     
-    state.isGenerating = false;
-
-    if (activeResult && activeResult.insight) {
-      state.cachedInsights[state.activeTopic] = activeResult.insight;
-      renderInsightMarkdown(activeResult.insight);
-      setLoadingState(false);
-    }
-
-    // STEP 2: Silent Background Prefetching for remaining topics
-    launchBackgroundPrefetch(payload, state.prefetchAbortController.signal);
-
-  } catch (error) {
-    state.isGenerating = false;
-    if (error.name === 'AbortError') {
+    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
+    if (runTicket !== activeGenerationTicket) {
+      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded by #${activeGenerationTicket}. Discarding Step 1.`);
       return;
     }
+
+    if (resActive && resActive.insight) {
+      state.cachedInsights[activeTopicName] = resActive.insight;
+      renderInsightMarkdown(resActive.insight);
+      setLoadingState(false);
+      state.isGenerating = false;
+    }
+
+    // =========================================================================
+    // STEP 2 of 3: Request 2nd Priority Topic (e.g. 'desil') -> Prefetch silently
+    // =========================================================================
+    const secondTopicName = activeTopicName === 'desil' ? 'overview' : 'desil';
+    const resSecond = await fetchSingleTopic(secondTopicName, payload);
+
+    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
+    if (runTicket !== activeGenerationTicket) {
+      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded. Discarding Step 2.`);
+      return;
+    }
+
+    if (resSecond && resSecond.insight) {
+      state.cachedInsights[secondTopicName] = resSecond.insight;
+      console.log(`[Tableau AI DTSEN] Prefetched 2nd priority topic '${secondTopicName}' silently.`);
+    }
+
+    // =========================================================================
+    // STEP 3 of 3: Request Remaining 4 Topics at Once in 1 Single Batch Call!
+    // =========================================================================
+    const remainingBatch = state.allTopics.filter(t => t !== activeTopicName && t !== secondTopicName);
+    
+    const resBatch = await fetchBatchTopics(remainingBatch, payload);
+
+    // IF USER CHANGED FILTER IN BETWEEN, STOP IMMEDIATELY!
+    if (runTicket !== activeGenerationTicket) {
+      console.log(`[Tableau AI DTSEN] Ticket #${runTicket} superseded. Discarding Step 3.`);
+      return;
+    }
+
+    if (resBatch && resBatch.insights) {
+      for (const [topicKey, text] of Object.entries(resBatch.insights)) {
+        if (text && typeof text === 'string') {
+          state.cachedInsights[topicKey] = text;
+        }
+      }
+      console.log(`[Tableau AI DTSEN] Successfully batch prefetched ${remainingBatch.length} remaining topics:`, remainingBatch);
+    }
+
+  } catch (error) {
+    if (runTicket !== activeGenerationTicket) {
+      return; // Discard superseded errors
+    }
+    state.isGenerating = false;
     console.error('[Tableau AI DTSEN] Error generating insight:', error);
     const isEn = state.language === 'en';
     
@@ -351,7 +387,7 @@ async function triggerDataExtractionAndAnalysis() {
 /**
  * Fetch Single Topic Fast (~2.5s)
  */
-async function fetchSingleTopic(topicName, basePayload, signal) {
+async function fetchSingleTopic(topicName, basePayload) {
   const requestBody = {
     ...basePayload,
     targetTopic: topicName
@@ -360,68 +396,16 @@ async function fetchSingleTopic(topicName, basePayload, signal) {
   const result = await fetchWithRetry('/api/generate-dtsen-insight', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-    signal: signal
+    body: JSON.stringify(requestBody)
   }, 2, 1200);
 
   return result;
 }
 
 /**
- * 3x Hybrid Request Architecture:
- * - Request 1: Active Topic (already fetched in triggerDataExtractionAndAnalysis)
- * - Request 2: Secondary Priority Topic (e.g. 'desil' if active is 'overview')
- * - Request 3: Batch remaining topics (e.g. ['wilayah', 'integrasi', 'anggaran', 'temuan'] at once)
- */
-async function launchBackgroundPrefetch(basePayload, abortSignal) {
-  const remainingTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
-  if (remainingTopics.length === 0 || abortSignal.aborted) return;
-
-  // 1. Determine 2nd Priority Topic (favor 'desil' if overview is active, otherwise first remaining)
-  let secondTopic = remainingTopics.includes('desil') ? 'desil' : remainingTopics[0];
-  if (state.activeTopic === 'desil' && remainingTopics.includes('overview')) {
-    secondTopic = 'overview';
-  }
-
-  // Execute Request 2: Fetch 2nd priority topic individually
-  try {
-    const resSecond = await fetchSingleTopic(secondTopic, basePayload, abortSignal);
-    if (resSecond && resSecond.insight) {
-      state.cachedInsights[secondTopic] = resSecond.insight;
-      console.log(`[Tableau AI DTSEN] Prefetched 2nd priority topic '${secondTopic}' silently.`);
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') return;
-    console.warn(`[Tableau AI DTSEN] 2nd topic prefetch skipped:`, e);
-  }
-
-  if (abortSignal.aborted) return;
-
-  // 2. Determine remaining batch topics (usually 4 topics)
-  const batchTopics = state.allTopics.filter(t => t !== state.activeTopic && !state.cachedInsights[t]);
-  if (batchTopics.length === 0 || abortSignal.aborted) return;
-
-  // Execute Request 3: Fetch all remaining topics in 1 single batch request!
-  try {
-    const resBatch = await fetchBatchTopics(batchTopics, basePayload, abortSignal);
-    if (resBatch && resBatch.insights) {
-      for (const [topicKey, text] of Object.entries(resBatch.insights)) {
-        if (text && typeof text === 'string') {
-          state.cachedInsights[topicKey] = text;
-        }
-      }
-      console.log(`[Tableau AI DTSEN] Successfully batch prefetched ${batchTopics.length} remaining topics:`, batchTopics);
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') return;
-    console.warn('[Tableau AI DTSEN] Batch remaining prefetch skipped:', e);
-  }
-}
-
-/**
  * Fetch Batch Topics in 1 Single Request
  */
-async function fetchBatchTopics(topicList, basePayload, signal) {
+async function fetchBatchTopics(topicList, basePayload) {
   const requestBody = {
     ...basePayload,
     targetTopic: 'batch',
@@ -431,8 +415,7 @@ async function fetchBatchTopics(topicList, basePayload, signal) {
   const result = await fetchWithRetry('/api/generate-dtsen-insight', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-    signal: signal
+    body: JSON.stringify(requestBody)
   }, 2, 1500);
 
   return result;
