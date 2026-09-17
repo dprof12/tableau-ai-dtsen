@@ -105,12 +105,24 @@ function initTableauExtension() {
 }
 
 /**
- * Fallback Browser Preview Mode (When opened directly in Chrome/Safari)
+ * Fallback Browser Preview Mode (When opened directly in Chrome/Edge/Safari outside Tableau)
+ * DILARANG NEMBAK API KE OPENROUTER! Hanya tampilkan pesan bahwa halaman ini adalah ekstensi Tableau.
  */
 function setupBrowserPreviewMode() {
   state.isTableauEnvironment = false;
   detectDashboardLanguage();
-  triggerDataExtractionAndAnalysis();
+  console.log('[Tableau AI DTSEN] Running in standalone browser preview. API calls disabled.');
+  
+  // Render demo placeholder without calling OpenRouter
+  hideAllViews();
+  elements.insightView.classList.remove('hidden');
+  elements.insightView.innerHTML = `
+    <div style="padding: 16px; background: rgba(0,0,0,0.03); border-radius: 8px; font-size: 13px; color: #475569; line-height: 1.6;">
+      <strong>Mode Preview Browser Terdeteksi.</strong><br>
+      Ekstensi ini dirancang khusus untuk berjalan di dalam <strong>Tableau Desktop / Tableau Server</strong>.<br>
+      Panggilan API ke OpenRouter dinonaktifkan di browser biasa untuk mencegah pemborosan token. Silakan gunakan ekstensi ini di dashboard Tableau Anda.
+    </div>
+  `;
 }
 
 /**
