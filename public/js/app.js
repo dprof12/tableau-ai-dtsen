@@ -55,8 +55,9 @@ function initTopicPillListeners() {
 
 /**
  * Switch Active Topic Pill with Instant Render from Memory Cache
+ * 100% PASSIVE: Only reads from memory cache, ZERO network requests!
  */
-async function switchTopic(newTopic) {
+function switchTopic(newTopic) {
   state.activeTopic = newTopic;
 
   // Update UI Pills styling
@@ -66,31 +67,15 @@ async function switchTopic(newTopic) {
     p.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
   });
 
-  // If insight for this topic is already in memory cache, render instantly (0ms lag!)
+  // 1. If insight for this topic is already in memory cache, render instantly (0ms lag!)
   if (state.cachedInsights[newTopic]) {
     renderInsightMarkdown(state.cachedInsights[newTopic]);
     setLoadingState(false);
     return;
   }
 
-  // If not yet ready, fetch this specific topic with high priority
-  if (state.extractedPayload) {
-    setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
-    try {
-      const singleResult = await fetchSingleTopic(newTopic, state.extractedPayload);
-      if (singleResult && singleResult.insight) {
-        state.cachedInsights[newTopic] = singleResult.insight;
-        if (state.activeTopic === newTopic) {
-          renderInsightMarkdown(singleResult.insight);
-          setLoadingState(false);
-        }
-      }
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        showError('Gagal memuat insight untuk topik ini.');
-      }
-    }
-  }
+  // 2. If not yet in cache (still being processed by sequential background loop), show loading state
+  setLoadingState(true, 'Sedang menyiapkan insight untuk topik ini...');
 }
 
 /**
@@ -353,6 +338,12 @@ async function launchBackgroundPrefetch(basePayload, abortSignal) {
       if (res && res.insight) {
         state.cachedInsights[topic] = res.insight;
         console.log(`[Tableau AI DTSEN] Prefetched topic '${topic}' silently in background.`);
+
+        // If user is currently looking at this topic tab, render it instantly!
+        if (state.activeTopic === topic) {
+          renderInsightMarkdown(res.insight);
+          setLoadingState(false);
+        }
       }
     } catch (e) {
       if (e.name === 'AbortError') {
