@@ -151,6 +151,12 @@ function attachAllEventListeners() {
         onTableauFilterChanged
       );
       state.filterUnregisterHandlers.push(unregFilter);
+
+      const unregSelection = ws.addEventListener(
+        tableau.TableauEventType.MarkSelectionChanged,
+        onTableauFilterChanged
+      );
+      state.filterUnregisterHandlers.push(unregSelection);
     } catch (e) {
       console.warn('[Tableau AI DTSEN] Listener warning on worksheet:', ws.name, e);
     }
