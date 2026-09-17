@@ -53,10 +53,8 @@ function initTopicPillListeners() {
   });
 }
 
-/**
- * Switch Active Topic Pill with Instant Render from Memory Cache
- */
-async function switchTopic(newTopic) {
+// Switch Active Topic Pill - 100% PASSIVE (Only reads from memory cache, NEVER calls API!)
+function switchTopic(newTopic) {
   state.activeTopic = newTopic;
 
   // Update UI Pills styling
@@ -66,35 +64,15 @@ async function switchTopic(newTopic) {
     p.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
   });
 
-  // If insight for this topic is already in memory cache, render instantly (0ms lag!)
+  // 1. If insight for this topic is already in memory cache, render instantly (0ms lag!)
   if (state.cachedInsights[newTopic]) {
     renderInsightMarkdown(state.cachedInsights[newTopic]);
     setLoadingState(false);
     return;
   }
 
-  // If background generation is actively running, just show loading and wait for it (DON'T trigger duplicate API calls!)
-  if (state.isGenerating) {
-    setLoadingState(true, 'Sedang memproses insight untuk topik ini...');
-    return;
-  }
-
-  // If not yet cached and idle, fetch this specific topic
-  if (state.extractedPayload) {
-    setLoadingState(true, 'Sedang menganalisis dan memproses insight...');
-    try {
-      const singleResult = await fetchSingleTopic(newTopic, state.extractedPayload);
-      if (singleResult && singleResult.insight) {
-        state.cachedInsights[newTopic] = singleResult.insight;
-        if (state.activeTopic === newTopic) {
-          renderInsightMarkdown(singleResult.insight);
-          setLoadingState(false);
-        }
-      }
-    } catch (e) {
-      showError('Gagal memuat insight untuk topik ini.');
-    }
-  }
+  // 2. If not yet in cache (still being processed by background prefetch 1-2-3456), show loading state
+  setLoadingState(true, 'Sedang memproses dan menyiapkan insight topik ini...');
 }
 
 /**
